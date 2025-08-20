@@ -62,6 +62,10 @@ dependencies:
   pointycastle: ^3.7.4
   # Pour l'encodage des clés au format PEM
   asn1lib: ^1.3.0
+  # Pour les tâches de fond
+  workmanager: ^0.5.2
+  # Pour vérifier l'espace disque
+  disk_space: ^0.2.1
   # Pour les polices Google, si le design system est étendu.
   google_fonts: ^6.1.0
 

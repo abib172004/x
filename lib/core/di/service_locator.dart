@@ -21,4 +21,7 @@ void setupLocator() {
 
   // Enregistre le service de cryptographie.
   getIt.registerLazySingleton<CryptoService>(() => CryptoService());
+
+  // Enregistre le service de tâches de fond.
+  getIt.registerLazySingleton<BackgroundService>(() => BackgroundService());
 }

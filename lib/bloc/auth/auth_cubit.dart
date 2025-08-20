@@ -1,11 +1,14 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hybrid_storage_app/bloc/auth/auth_state.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:hybrid_storage_app/core/di/service_locator.dart';
+import 'package:hybrid_storage_app/core/services/background_service.dart';
 
 class AuthCubit extends Cubit<AuthState> {
   AuthCubit() : super(AuthInitial());
 
   final _secureStorage = const FlutterSecureStorage();
+  final _backgroundService = getIt<BackgroundService>();
 
   // Clés pour le stockage sécurisé
   static const _keyDeviceId = 'id_appareil';
@@ -40,6 +43,10 @@ class AuthCubit extends Cubit<AuthState> {
       await _secureStorage.write(key: _keyDeviceId, value: idAppareil);
       await _secureStorage.write(key: _keyDevicePrivateKey, value: clePriveeMobile);
       await _secureStorage.write(key: _keyServerPublicKey, value: clePubliqueServeur);
+
+      // Planifie la tâche de fond pour les transferts automatiques.
+      await _backgroundService.schedulePeriodicCheck();
+
       emit(AuthAuthenticated());
     } catch (e) {
       // En cas d'erreur de sauvegarde, on ne considère pas l'appairage comme réussi.
@@ -52,6 +59,10 @@ class AuthCubit extends Cubit<AuthState> {
     await _secureStorage.delete(key: _keyDeviceId);
     await _secureStorage.delete(key: _keyDevicePrivateKey);
     await _secureStorage.delete(key: _keyServerPublicKey);
+
+    // Annule les tâches de fond planifiées.
+    await _backgroundService.cancelAllTasks();
+
     emit(AuthUnauthenticated());
   }
 }

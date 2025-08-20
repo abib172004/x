@@ -7,7 +7,8 @@ const { spawn } = require('child_process'); // Pour lancer le processus Python
 // Si on ne fait pas ça, la fenêtre pourrait être fermée automatiquement
 // lorsque l'objet JavaScript est récupéré par le ramasse-miettes (garbage collector).
 let fenetre_principale;
-let processus_python;
+let processus_fastapi;
+let processus_grpc;
 
 // Fonction pour créer la fenêtre de l'application.
 function creer_fenetre() {
@@ -39,36 +40,35 @@ function creer_fenetre() {
   });
 }
 
-// Fonction pour démarrer le serveur backend Python.
-function demarrer_backend() {
-  console.log('Démarrage du serveur backend Python...');
-  // Utilise `spawn` pour lancer le serveur uvicorn.
-  // Le chemin vers le script python est relatif.
-  processus_python = spawn('python', ['-m', 'uvicorn', 'main:application_fastapi', '--host', '127.0.0.1', '--port', '8000'], {
-    cwd: path.join(__dirname, 'backend'), // Spécifie le répertoire de travail pour le processus Python.
+// Fonctions pour démarrer les serveurs backend.
+function demarrer_serveur_fastapi() {
+  console.log('Démarrage du serveur FastAPI...');
+  processus_fastapi = spawn('python', ['-m', 'uvicorn', 'main:application_fastapi', '--host', '127.0.0.1', '--port', '8000'], {
+    cwd: path.join(__dirname, 'backend'),
     shell: true,
   });
 
-  // Affiche la sortie standard du processus Python dans la console d'Electron.
-  processus_python.stdout.on('data', (donnees) => {
-    console.log(`[Backend Python]: ${donnees}`);
+  processus_fastapi.stdout.on('data', (data) => console.log(`[FastAPI]: ${data}`));
+  processus_fastapi.stderr.on('data', (data) => console.error(`[Erreur FastAPI]: ${data}`));
+}
+
+function demarrer_serveur_grpc() {
+  console.log('Démarrage du serveur gRPC...');
+  processus_grpc = spawn('python', ['grpc_server.py'], {
+    cwd: path.join(__dirname, 'backend'),
+    shell: true,
   });
 
-  // Affiche les erreurs du processus Python.
-  processus_python.stderr.on('data', (donnees) => {
-    console.error(`[Erreur Backend Python]: ${donnees}`);
-  });
-
-  processus_python.on('close', (code) => {
-    console.log(`Le processus backend Python s'est terminé avec le code ${code}`);
-  });
+  processus_grpc.stdout.on('data', (data) => console.log(`[gRPC]: ${data}`));
+  processus_grpc.stderr.on('data', (data) => console.error(`[Erreur gRPC]: ${data}`));
 }
 
 // Cette méthode sera appelée quand Electron aura fini
 // son initialisation et sera prêt à créer des fenêtres de navigateur.
 // Certaines APIs peuvent être utilisées uniquement après cet événement.
 app.on('ready', () => {
-  demarrer_backend();
+  demarrer_serveur_fastapi();
+  demarrer_serveur_grpc();
   creer_fenetre();
 });
 
@@ -89,10 +89,9 @@ app.on('activate', () => {
   }
 });
 
-// Assure que le processus Python est bien terminé quand l'application Electron quitte.
+// Assure que les processus Python sont bien terminés quand l'application Electron quitte.
 app.on('will-quit', () => {
-  if (processus_python) {
-    console.log('Arrêt du processus backend Python...');
-    processus_python.kill();
-  }
+  console.log('Arrêt des serveurs backend...');
+  if (processus_fastapi) processus_fastapi.kill();
+  if (processus_grpc) processus_grpc.kill();
 });

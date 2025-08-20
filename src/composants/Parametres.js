@@ -8,8 +8,8 @@ function Parametres() {
   const [parametres, definirParametres] = useState(null);
   const [erreur, definirErreur] = useState('');
   const [chargement, definirChargement] = useState(true);
+  const [messageSauvegarde, definirMessageSauvegarde] = useState('');
 
-  // Récupère les paramètres initiaux depuis le backend
   useEffect(() => {
     const recupererParametres = async () => {
       definirChargement(true);
@@ -26,7 +26,6 @@ function Parametres() {
     recupererParametres();
   }, []);
 
-  // Gestionnaire générique pour les changements dans les champs
   const handleChangement = (categorie, cle, valeur) => {
     definirParametres(prev => ({
       ...prev,
@@ -37,14 +36,18 @@ function Parametres() {
     }));
   };
 
-  const sauvegarderParametres = async () => {
+  const sauvegarderParametres = async (e) => {
+    e.preventDefault(); // Empêche le rechargement de la page pour un formulaire
+    definirMessageSauvegarde('Sauvegarde en cours...');
     try {
       await axios.post(`${API_URL}/api/v1/parametres`, parametres);
-      alert("Paramètres sauvegardés avec succès !");
+      definirMessageSauvegarde('Paramètres sauvegardés avec succès !');
     } catch (err) {
-      alert("Erreur lors de la sauvegarde des paramètres.");
+      definirMessageSauvegarde("Erreur lors de la sauvegarde.");
       console.error(err);
     }
+    // Fait disparaître le message après 3 secondes
+    setTimeout(() => definirMessageSauvegarde(''), 3000);
   };
 
   if (chargement) return <div>Chargement des paramètres...</div>;
@@ -52,9 +55,10 @@ function Parametres() {
   if (!parametres) return <div>Aucun paramètre trouvé.</div>;
 
   return (
-    <div className="ecran-parametres">
+    <form className="ecran-parametres" onSubmit={sauvegarderParametres}>
       <h1>Paramètres</h1>
 
+      {/* --- Section Stockage --- */}
       <div className="section-parametres">
         <h2>Stockage</h2>
         <div className="champ-parametre">
@@ -66,11 +70,12 @@ function Parametres() {
               value={parametres.stockage.dossier_principal}
               onChange={(e) => handleChangement('stockage', 'dossier_principal', e.target.value)}
             />
-            <button>Parcourir...</button>
+            <button type="button">Parcourir...</button>
           </div>
         </div>
       </div>
 
+      {/* --- Section Application --- */}
       <div className="section-parametres">
         <h2>Application</h2>
         <div className="champ-parametre-checkbox">
@@ -82,14 +87,42 @@ function Parametres() {
           />
           <label htmlFor="lancement_demarrage">Lancer l'application au démarrage du système</label>
         </div>
+        <div className="champ-parametre">
+          <label htmlFor="theme">Thème de l'application</label>
+          <select
+            id="theme"
+            value={parametres.application.theme}
+            onChange={(e) => handleChangement('application', 'theme', e.target.value)}
+          >
+            <option value="systeme">Thème du système</option>
+            <option value="clair">Clair</option>
+            <option value="sombre">Sombre</option>
+          </select>
+        </div>
       </div>
 
+      {/* --- Section Réseau --- */}
+      <div className="section-parametres">
+        <h2>Réseau</h2>
+        <div className="champ-parametre">
+          <label htmlFor="port_ecoute">Port d'écoute</label>
+          <input
+            type="number"
+            id="port_ecoute"
+            value={parametres.reseau.port_ecoute}
+            onChange={(e) => handleChangement('reseau', 'port_ecoute', parseInt(e.target.value, 10))}
+          />
+        </div>
+      </div>
+
+      {/* --- Actions --- */}
       <div className="actions-globales">
-        <button className="bouton-sauvegarder" onClick={sauvegarderParametres}>
+        {messageSauvegarde && <span className="message-sauvegarde">{messageSauvegarde}</span>}
+        <button type="submit" className="bouton-sauvegarder">
           Sauvegarder les changements
         </button>
       </div>
-    </div>
+    </form>
   );
 }
 

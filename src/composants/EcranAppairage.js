@@ -7,11 +7,12 @@ import './EcranAppairage.css'; // Styles spécifiques à cet écran
 // En développement, le serveur Python tourne sur le port 8000.
 const API_URL = 'http://localhost:8000';
 
-function EcranAppairage() {
+function EcranAppairage({ surAppairageReussi }) {
   // Déclaration des états du composant avec le hook `useState`.
   const [donnees_qr, definir_donnees_qr] = useState(null); // Pour stocker les données du QR code
   const [empreinte, definir_empreinte] = useState(''); // Pour stocker l'empreinte de sécurité
   const [erreur, definir_erreur] = useState(''); // Pour gérer les erreurs
+  const [nombreAppareils, definirNombreAppareils] = useState(0);
 
   // Le hook `useEffect` est utilisé pour exécuter du code après le rendu du composant.
   // C'est l'endroit idéal pour aller chercher des données.
@@ -19,25 +20,39 @@ function EcranAppairage() {
     // Fonction asynchrone pour générer les informations d'appairage.
     const generer_infos_appairage = async () => {
       try {
-        // Fait un appel GET à l'endpoint du backend.
         const reponse = await axios.get(`${API_URL}/api/v1/appairage/generer-code`);
-
-        // Les données pour le QR code sont un objet JSON, nous devons le convertir en chaîne.
         const donnees_qr_en_chaine = JSON.stringify(reponse.data.donnees_pour_qr);
-
-        // Met à jour les états avec les données reçues du backend.
         definir_donnees_qr(donnees_qr_en_chaine);
         definir_empreinte(reponse.data.empreinte_securite);
-        definir_erreur(''); // Réinitialise les erreurs
+        definir_erreur('');
       } catch (err) {
-        // En cas d'erreur (ex: le backend ne répond pas), on met à jour l'état d'erreur.
         console.error("Erreur lors de la génération des informations d'appairage:", err);
         definir_erreur('Impossible de contacter le serveur. Veuillez vérifier qu\'il est bien lancé.');
       }
     };
 
+    const verifierNouveauxAppareils = async () => {
+      try {
+        const reponse = await axios.get(`${API_URL}/api/v1/appareils`);
+        if (reponse.data.length > nombreAppareils) {
+          console.log("Nouvel appareil détecté !");
+          surAppairageReussi();
+        }
+      } catch (err) {
+        console.error("Erreur lors de la vérification des appareils:", err);
+      }
+    };
+
     generer_infos_appairage();
-  }, []); // Le tableau vide `[]` signifie que cet effet ne s'exécute qu'une seule fois, au montage du composant.
+
+    // Lance un intervalle pour vérifier les nouveaux appareils toutes les 5 secondes
+    const intervalId = setInterval(verifierNouveauxAppareils, 5000);
+
+    // La fonction de nettoyage de useEffect est appelée quand le composant est démonté.
+    // C'est crucial pour éviter les fuites de mémoire.
+    return () => clearInterval(intervalId);
+
+  }, [nombreAppareils, surAppairageReussi]); // Se ré-exécute si ces dépendances changent
 
   return (
     <div className="ecran-appairage-conteneur">

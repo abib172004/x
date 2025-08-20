@@ -1,29 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import './App.css'; // Importation des styles
+import './App.css';
 
-// Importation des composants pour chaque écran
 import TableauDeBord from './composants/TableauDeBord';
 import ExplorateurFichiers from './composants/ExplorateurFichiers';
 import Appareils from './composants/Appareils';
 import Parametres from './composants/Parametres';
 import EcranAppairage from './composants/EcranAppairage';
 
-// Composant de navigation latérale (Sidebar)
 function BarreLaterale() {
-  const location = useLocation(); // Hook pour obtenir l'URL actuelle
-
-  // Fonction pour déterminer si un lien est actif
+  const location = useLocation();
   const estActif = (chemin) => location.pathname === chemin;
 
   return (
     <nav className="barre-laterale">
       <div className="logo-conteneur">
-        {/* Placeholder pour le logo */}
         <h2>HybridStorage</h2>
       </div>
       <ul>
-        {/* Les liens de navigation. La classe 'actif' est ajoutée si le lien correspond à la page actuelle. */}
         <li className={estActif('/') ? 'actif' : ''}>
           <Link to="/">Tableau de bord</Link>
         </li>
@@ -41,14 +35,27 @@ function BarreLaterale() {
   );
 }
 
-// Composant principal de l'application
 function App() {
-  // Pour le développement, on passe à `true` pour voir l'interface principale.
-  // Dans une vraie application, cet état serait géré dynamiquement.
-  const estAppaire = true;
+  const [estAppaire, definirEstAppaire] = useState(false);
+
+  // Cette fonction sera passée à l'écran d'appairage pour qu'il puisse
+  // mettre à jour l'état de l'application principale.
+  const handleAppairageReussi = () => {
+    definirEstAppaire(true);
+  };
+
+  // On vérifie s'il y a déjà des appareils au démarrage (simulation)
+  // Dans une vraie app, on appellerait le backend.
+  React.useEffect(() => {
+    // axios.get(`${API_URL}/api/v1/appareils`).then(reponse => {
+    //   if (reponse.data.length > 0) {
+    //     definirEstAppaire(true);
+    //   }
+    // });
+  }, []);
 
   if (!estAppaire) {
-    return <EcranAppairage />;
+    return <EcranAppairage surAppairageReussi={handleAppairageReussi} />;
   }
 
   return (
@@ -56,7 +63,6 @@ function App() {
       <BarreLaterale />
       <main className="contenu-principal">
         <Routes>
-          {/* Définition des routes. Chaque route correspond à un écran. */}
           <Route path="/" element={<TableauDeBord />} />
           <Route path="/explorateur" element={<ExplorateurFichiers />} />
           <Route path="/appareils" element={<Appareils />} />

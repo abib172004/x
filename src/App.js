@@ -4,7 +4,7 @@ import './App.css'; // Importation des styles
 
 // Importation des composants pour chaque écran
 import TableauDeBord from './composants/TableauDeBord';
-// import ExplorateurFichiers from './composants/ExplorateurFichiers';
+import ExplorateurFichiers from './composants/ExplorateurFichiers';
 // import Appareils from './composants/Appareils';
 // import Parametres from './composants/Parametres';
 import EcranAppairage from './composants/EcranAppairage';
@@ -58,7 +58,7 @@ function App() {
         <Routes>
           {/* Définition des routes. Chaque route correspond à un écran. */}
           <Route path="/" element={<TableauDeBord />} />
-          {/* <Route path="/explorateur" element={<ExplorateurFichiers />} /> */}
+          <Route path="/explorateur" element={<ExplorateurFichiers />} />
           {/* <Route path="/appareils" element={<Appareils />} /> */}
           {/* <Route path="/parametres" element={<Parametres />} /> */}
         </Routes>

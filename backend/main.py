@@ -136,6 +136,62 @@ def lire_statistiques_tableau_de_bord():
     return donnees_simulees
 
 
+import os
+import datetime
+from fastapi import Query
+from typing import Optional
+
+# Le répertoire de base où tous les fichiers seront stockés.
+# Pour la sécurité, l'application ne pourra pas accéder à des fichiers en dehors de ce dossier.
+REPERTOIRE_DE_BASE = os.path.join(os.path.expanduser("~"), "HybridStorage")
+
+
+@application_fastapi.on_event("startup")
+def au_demarrage():
+    """
+    Fonction exécutée au démarrage du serveur pour s'assurer que le répertoire de base existe.
+    """
+    if not os.path.exists(REPERTOIRE_DE_BASE):
+        print(f"Création du répertoire de stockage à: {REPERTOIRE_DE_BASE}")
+        os.makedirs(REPERTOIRE_DE_BASE)
+
+
+@application_fastapi.get("/api/v1/fichiers/lister")
+def lister_fichiers(chemin: Optional[str] = Query(default="/")):
+    """
+    Liste les fichiers et dossiers pour un chemin donné à l'intérieur du répertoire de base.
+    """
+    try:
+        # Sécurisation du chemin pour éviter les attaques de type "directory traversal"
+        chemin_securise = os.path.normpath(os.path.join(REPERTOIRE_DE_BASE, chemin.strip('/\\')))
+        if not chemin_securise.startswith(os.path.normpath(REPERTOIRE_DE_BASE)):
+            return {"erreur": "Accès non autorisé"}
+
+        contenu_repertoire = os.listdir(chemin_securise)
+        liste_fichiers = []
+
+        for nom_element in contenu_repertoire:
+            chemin_complet = os.path.join(chemin_securise, nom_element)
+            stats = os.stat(chemin_complet)
+            est_un_dossier = os.path.isdir(chemin_complet)
+
+            infos_element = {
+                "nom": nom_element,
+                "chemin": os.path.join(chemin, nom_element),
+                "type": "dossier" if est_un_dossier else "fichier",
+                "tailleOctets": stats.st_size,
+                "modifieLe": datetime.datetime.fromtimestamp(stats.st_mtime).isoformat()
+            }
+            liste_fichiers.append(infos_element)
+
+        return {"chemin_actuel": chemin, "contenu": liste_fichiers}
+
+    except FileNotFoundError:
+        return {"erreur": f"Le chemin '{chemin}' n'a pas été trouvé."}
+    except Exception as e:
+        return {"erreur": f"Une erreur est survenue: {str(e)}"}
+
+
 # Ce bloc de code est exécuté seulement si le script est lancé directement
 # (par exemple, avec `python main.py`).
 # Il n'est pas exécuté si le script est importé comme un module.

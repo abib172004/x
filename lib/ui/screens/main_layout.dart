@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'packagepackage:hybrid_storage_app/ui/screens/dashboard/dashboard_screen.dart';
-import 'packagepackage:hybrid_storage_app/ui/screens/file_explorer/file_explorer_screen.dart';
-import 'packagepackage:hybrid_storage_app/ui/screens/transfers/transfers_screen.dart';
-import 'packagepackage:hybrid_storage_app/ui/screens/settings/settings_screen.dart';
+import 'package:hybrid_storage_app/ui/screens/dashboard/dashboard_screen.dart';
+import 'package:hybrid_storage_app/ui/screens/file_explorer/file_explorer_screen.dart';
+import 'package:hybrid_storage_app/ui/screens/transfers/transfers_screen.dart';
+import 'package:hybrid_storage_app/ui/screens/settings/settings_screen.dart';
 
 // Ce widget est la structure principale de l'application après l'authentification.
 // Il contient la barre de navigation inférieure et gère l'affichage des écrans principaux.

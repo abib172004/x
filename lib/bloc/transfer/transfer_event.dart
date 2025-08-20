@@ -1,0 +1,52 @@
+import 'package:equatable/equatable.dart';
+import 'package:hybrid_storage_app/core/models/file_info.dart';
+
+// Fichier définissant les événements pour le TransferBloc.
+
+abstract class TransferEvent extends Equatable {
+  const TransferEvent();
+
+  @override
+  List<Object> get props => [];
+}
+
+// Événement pour démarrer un nouveau transfert (upload).
+class StartUpload extends TransferEvent {
+  final FileInfo fileToUpload;
+
+  const StartUpload(this.fileToUpload);
+
+  @override
+  List<Object> get props => [fileToUpload];
+}
+
+// Événement pour démarrer un nouveau téléchargement (download).
+class StartDownload extends TransferEvent {
+  final FileInfo fileToDownload;
+
+  const StartDownload(this.fileToDownload);
+
+  @override
+  List<Object> get props => [fileToDownload];
+}
+
+// Événement interne pour mettre à jour la progression d'un transfert.
+class _UpdateTransferProgress extends TransferEvent {
+  final String transferId;
+  final double progress;
+
+  const _UpdateTransferProgress(this.transferId, this.progress);
+
+  @override
+  List<Object> get props => [transferId, progress];
+}
+
+// Événement interne pour marquer un transfert comme terminé.
+class _CompleteTransfer extends TransferEvent {
+  final String transferId;
+
+  const _CompleteTransfer(this.transferId);
+
+  @override
+  List<Object> get props => [transferId];
+}

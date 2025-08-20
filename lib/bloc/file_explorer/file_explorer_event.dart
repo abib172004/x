@@ -1,0 +1,24 @@
+import 'package:equatable/equatable.dart';
+
+// Fichier définissant les événements que l'UI peut envoyer au FileExplorerBloc.
+
+abstract class FileExplorerEvent extends Equatable {
+  const FileExplorerEvent();
+
+  @override
+  List<Object> get props => [];
+}
+
+// Événement pour charger le contenu d'un répertoire.
+// Le chemin (path) peut être celui du répertoire racine ou d'un sous-dossier.
+class LoadDirectory extends FileExplorerEvent {
+  final String path;
+
+  const LoadDirectory(this.path);
+
+  @override
+  List<Object> get props => [path];
+}
+
+// Événement pour rafraîchir le contenu du répertoire actuel.
+class RefreshDirectory extends FileExplorerEvent {}

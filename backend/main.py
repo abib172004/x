@@ -145,15 +145,47 @@ from typing import Optional
 # Pour la sécurité, l'application ne pourra pas accéder à des fichiers en dehors de ce dossier.
 REPERTOIRE_DE_BASE = os.path.join(os.path.expanduser("~"), "HybridStorage")
 
+# "Base de données" en mémoire pour les appareils appairés.
+# Dans une vraie application, cela serait stocké dans une base de données persistante (ex: SQLite).
+appareils_appaires_db = {}
+
 
 @application_fastapi.on_event("startup")
 def au_demarrage():
     """
-    Fonction exécutée au démarrage du serveur pour s'assurer que le répertoire de base existe.
+    Fonction exécutée au démarrage du serveur.
     """
+    # S'assure que le répertoire de base existe.
     if not os.path.exists(REPERTOIRE_DE_BASE):
         print(f"Création du répertoire de stockage à: {REPERTOIRE_DE_BASE}")
         os.makedirs(REPERTOIRE_DE_BASE)
+
+    # Peuple la base de données en mémoire avec des données de simulation.
+    appareils_simules = [
+        { "id": "uuid-android-123", "nom": "Smartphone de Jules", "type": "Android", "date_appairage": "2025-08-15", "statut": "Connecté" },
+        { "id": "uuid-ios-456", "nom": "iPhone de Claire", "type": "iOS", "date_appairage": "2025-08-18", "statut": "En veille" },
+        { "id": "uuid-android-789", "nom": "Tablette de Test", "type": "Android", "date_appairage": "2025-08-01", "statut": "Déconnecté" },
+    ]
+    for appareil in appareils_simules:
+        appareils_appaires_db[appareil["id"]] = appareil
+
+
+@application_fastapi.get("/api/v1/appareils")
+def lister_appareils():
+    """
+    Retourne la liste de tous les appareils appairés.
+    """
+    return list(appareils_appaires_db.values())
+
+@application_fastapi.delete("/api/v1/appareils/{id_appareil}")
+def revoquer_appareil(id_appareil: str):
+    """
+    Révoque (supprime) un appareil appairé en utilisant son ID.
+    """
+    if id_appareil in appareils_appaires_db:
+        del appareils_appaires_db[id_appareil]
+        return {"statut": "succes", "message": f"Appareil {id_appareil} révoqué."}
+    return {"statut": "erreur", "message": "Appareil non trouvé."}
 
 
 @application_fastapi.get("/api/v1/fichiers/lister")
@@ -190,6 +222,50 @@ def lister_fichiers(chemin: Optional[str] = Query(default="/")):
         return {"erreur": f"Le chemin '{chemin}' n'a pas été trouvé."}
     except Exception as e:
         return {"erreur": f"Une erreur est survenue: {str(e)}"}
+
+
+from pydantic import BaseModel
+
+# "Base de données" en mémoire pour les paramètres
+parametres_db = {
+    "stockage": {
+        "dossier_principal": os.path.join(os.path.expanduser("~"), "HybridStorage"),
+    },
+    "application": {
+        "lancement_demarrage": True,
+    },
+}
+
+# Modèles Pydantic pour la validation des données
+class ParametresStockage(BaseModel):
+    dossier_principal: str
+
+class ParametresApplication(BaseModel):
+    lancement_demarrage: bool
+
+class ParametresComplets(BaseModel):
+    stockage: ParametresStockage
+    application: ParametresApplication
+
+
+@application_fastapi.get("/api/v1/parametres")
+def lire_parametres():
+    """
+    Retourne la configuration actuelle de l'application.
+    """
+    return parametres_db
+
+@application_fastapi.post("/api/v1/parametres")
+def sauvegarder_parametres(parametres: ParametresComplets):
+    """
+    Sauvegarde la nouvelle configuration de l'application.
+    Valide les données entrantes grâce au modèle Pydantic.
+    """
+    # Dans une vraie application, on sauvegarderait ces données dans un fichier de config ou une base de données.
+    parametres_db["stockage"]["dossier_principal"] = parametres.stockage.dossier_principal
+    parametres_db["application"]["lancement_demarrage"] = parametres.application.lancement_demarrage
+    print(f"Paramètres sauvegardés: {parametres_db}")
+    return {"statut": "succes", "message": "Paramètres sauvegardés."}
 
 
 # Ce bloc de code est exécuté seulement si le script est lancé directement

@@ -9,6 +9,8 @@ import 'package:hybrid_storage_app/core/services/communication_service.dart';
 
 class TransferBloc extends Bloc<TransferEvent, TransferState> {
   final CommunicationService _communicationService = getIt<CommunicationService>();
+  // Liste pour garder une référence à toutes les souscriptions de stream actives.
+  final List<StreamSubscription> _subscriptions = [];
 
   TransferBloc() : super(const TransferState()) {
     on<StartDownload>(_onStartDownload);
@@ -44,22 +46,22 @@ class TransferBloc extends Bloc<TransferEvent, TransferState> {
     if (transfer.type == TransferType.download) {
       progressStream = _communicationService.downloadFile(transfer.file.path, '/fake/local/path');
     } else {
-      // Pour la simulation, on ne peut pas créer un vrai fichier, donc on passe null.
-      // Une vraie implémentation nécessiterait un objet File.
       progressStream = _communicationService.uploadFile(null, transfer.file.path);
     }
 
-    progressStream.listen(
+    // On stocke la souscription pour pouvoir l'annuler plus tard.
+    final subscription = progressStream.listen(
       (progress) {
-        add(UpdateTransferProgress(transfer.id, progress));
+        if (!isClosed) add(UpdateTransferProgress(transfer.id, progress));
       },
       onDone: () {
-        add(CompleteTransfer(transfer.id));
+        if (!isClosed) add(CompleteTransfer(transfer.id));
       },
       onError: (error) {
-        add(FailTransfer(transfer.id, error.toString()));
+        if (!isClosed) add(FailTransfer(transfer.id, error.toString()));
       },
     );
+    _subscriptions.add(subscription);
   }
 
   void _onUpdateProgress(
@@ -99,5 +101,17 @@ class TransferBloc extends Bloc<TransferEvent, TransferState> {
     }).toList();
 
     emit(state.copyWith(transfers: updatedTransfers));
+  }
+
+  // On surcharge la méthode `close` du BLoC.
+  @override
+  Future<void> close() {
+    // On annule chaque souscription active pour éviter les fuites de mémoire et les erreurs.
+    for (final subscription in _subscriptions) {
+      subscription.cancel();
+    }
+    _subscriptions.clear();
+    // On appelle la méthode `close` de la classe parente pour terminer le nettoyage.
+    return super.close();
   }
 }

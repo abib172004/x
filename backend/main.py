@@ -1,242 +1,78 @@
 # -*- coding: utf-8 -*-
 
-# Importations nécessaires depuis FastAPI et autres bibliothèques
-from fastapi import FastAPI
+import os
+import socket
+import hashlib
+import datetime
+import json
+from typing import Optional, List
+
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 import uvicorn
 
-# Création de l'instance de l'application FastAPI.
-# C'est le cœur de notre backend.
+# --- Gestionnaire de Connexions WebSocket ---
+class GestionnaireConnexions:
+    def __init__(self):
+        self.connexions_actives: List[WebSocket] = []
+
+    async def connecter(self, websocket: WebSocket):
+        await websocket.accept()
+        self.connexions_actives.append(websocket)
+
+    def deconnecter(self, websocket: WebSocket):
+        self.connexions_actives.remove(websocket)
+
+    async def envoyer_message_personnel(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
+
+gestionnaire = GestionnaireConnexions()
+
+
+# --- Configuration de l'application FastAPI ---
 application_fastapi = FastAPI(
     title="API du Stockage Hybride Desktop",
     description="Ce serveur gère les fichiers et la communication avec l'application mobile.",
     version="1.0.0",
 )
 
-# Configuration des CORS (Cross-Origin Resource Sharing).
-# C'est une mesure de sécurité importante qui permet à notre frontend Electron
-# de communiquer avec ce backend, même s'ils n'ont pas la même "origine".
-# Ici, nous autorisons toutes les origines, méthodes et en-têtes pour la simplicité
-# du développement local. Pour la production, il faudrait être plus restrictif.
 application_fastapi.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Accepte les requêtes de n'importe quelle origine.
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Accepte toutes les méthodes HTTP (GET, POST, etc.).
-    allow_headers=["*"],  # Accepte tous les en-têtes.
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
-# Définition d'une "route" ou d'un "endpoint".
-# C'est une URL spécifique que le frontend peut appeler pour obtenir une information
-# ou déclencher une action.
-# Le décorateur `@application_fastapi.get("/")` indique que cette fonction
-# répondra aux requêtes HTTP GET sur l'URL racine ("/").
-@application_fastapi.get("/")
-def lire_racine():
-    """
-    Endpoint racine qui retourne un message de bienvenue.
-    Utile pour vérifier rapidement que le serveur est bien démarré.
-    """
-    return {"message": "Bienvenue sur le serveur du Stockage Hybride !"}
-
-
-@application_fastapi.get("/status")
-import socket
-import hashlib
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-
-def lire_status():
-    """
-    Endpoint de statut pour vérifier l'état de santé du serveur.
-    L'application Electron pourra appeler cet endpoint pour s'assurer que le backend Python
-    est bien en cours d'exécution avant de continuer.
-    """
-    return {"statut": "ok", "message": "Le serveur est en ligne."}
-
-
-@application_fastapi.get("/api/v1/appairage/generer-code")
-def generer_code_appairage():
-    """
-    Génère une nouvelle paire de clés cryptographiques et retourne les informations
-    nécessaires à l'appairage sous forme de JSON.
-    """
-    # 1. Générer une nouvelle paire de clés RSA
-    cle_privee = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-    )
-    cle_publique = cle_privee.public_key()
-
-    # 2. Sérialiser la clé publique au format PEM (un format standard)
-    pem_cle_publique = cle_publique.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    )
-
-    # 3. Calculer l'empreinte de sécurité (SHA-256 de la clé publique) pour la vérification manuelle
-    # On utilise le format DER (binaire) pour un hachage cohérent
-    der_cle_publique = cle_publique.public_bytes(
-        encoding=serialization.Encoding.DER,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    )
-    hachage = hashlib.sha256(der_cle_publique).hexdigest()
-    # Formate l'empreinte pour une meilleure lisibilité (ex: A1:B2:C3...)
-    empreinte_formatee = ':'.join(hachage[i:i+2] for i in range(0, 32, 2)).upper()
-
-    # 4. Obtenir le nom de l'hôte de l'ordinateur
-    nom_hote = socket.gethostname()
-
-    # TODO: Stocker la clé privée de manière sécurisée pour une utilisation future.
-    # Pour l'instant, elle n'est pas sauvegardée et est perdue après cet appel.
-
-    # 5. Construire les données à inclure dans le QR code
-    donnees_qr_structure = {
-        "nom_hote": nom_hote,
-        "cle_publique_pem": pem_cle_publique.decode('utf-8'),
-        # On pourrait ajouter d'autres informations ici, comme l'IP locale ou les ports
-    }
-
-    # 6. Retourner la réponse complète au frontend
-    return {
-        "donnees_pour_qr": donnees_qr_structure,
-        "empreinte_securite": empreinte_formatee
-    }
-
-
-@application_fastapi.get("/api/v1/tableau-de-bord/statistiques")
-def lire_statistiques_tableau_de_bord():
-    """
-    Retourne des statistiques simulées pour l'affichage sur le tableau de bord.
-    """
-    # Dans une vraie application, ces données proviendraient de la surveillance
-    # du disque, de la base de données des appareils et des journaux d'activité.
-    donnees_simulees = {
-        "stockage": {
-            "totalGo": 1000,
-            "utiliseGo": 450,
-            "ventilation": [
-                {"type": "Photos", "tailleGo": 200},
-                {"type": "Vidéos", "tailleGo": 150},
-                {"type": "Documents", "tailleGo": 50},
-                {"type": "Autres", "tailleGo": 50},
-            ]
-        },
-        "appareilsConnectes": [
-            {"nom": "Smartphone de Jules", "type": "Android", "statut": "Connecté"},
-            {"nom": "iPhone de Claire", "type": "iOS", "statut": "En veille"},
-        ],
-        "activiteRecente": [
-            {"heure": "14:25", "action": "Transfert de 50 photos terminé depuis \"iPhone de Claire\"."},
-            {"heure": "13:10", "action": "Connexion de \"Smartphone de Jules\"."},
-            {"heure": "11:50", "action": "Espace de stockage faible détecté sur \"iPhone de Claire\"."},
-        ]
-    }
-    return donnees_simulees
-
-
-import os
-import datetime
-from fastapi import Query
-from typing import Optional
-
-# Le répertoire de base où tous les fichiers seront stockés.
-# Pour la sécurité, l'application ne pourra pas accéder à des fichiers en dehors de ce dossier.
+# --- "Base de données" en mémoire ---
 REPERTOIRE_DE_BASE = os.path.join(os.path.expanduser("~"), "HybridStorage")
-
-# "Base de données" en mémoire pour les appareils appairés.
-# Dans une vraie application, cela serait stocké dans une base de données persistante (ex: SQLite).
 appareils_appaires_db = {}
-
+cle_privee_serveur = None # Pour stocker la clé privée générée
 
 @application_fastapi.on_event("startup")
 def au_demarrage():
-    """
-    Fonction exécutée au démarrage du serveur.
-    """
-    # S'assure que le répertoire de base existe.
+    global cle_privee_serveur
     if not os.path.exists(REPERTOIRE_DE_BASE):
-        print(f"Création du répertoire de stockage à: {REPERTOIRE_DE_BASE}")
         os.makedirs(REPERTOIRE_DE_BASE)
 
-    # Peuple la base de données en mémoire avec des données de simulation.
-    appareils_simules = [
-        { "id": "uuid-android-123", "nom": "Smartphone de Jules", "type": "Android", "date_appairage": "2025-08-15", "statut": "Connecté" },
-        { "id": "uuid-ios-456", "nom": "iPhone de Claire", "type": "iOS", "date_appairage": "2025-08-18", "statut": "En veille" },
-        { "id": "uuid-android-789", "nom": "Tablette de Test", "type": "Android", "date_appairage": "2025-08-01", "statut": "Déconnecté" },
-    ]
-    for appareil in appareils_simules:
-        appareils_appaires_db[appareil["id"]] = appareil
+    # Génère une clé privée pour le serveur au démarrage
+    cle_privee_serveur = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+    # Ajout d'un appareil de test pour le développement
+    id_test = "appareil-test-123"
+    appareils_appaires_db[id_test] = { "id": id_test, "nom": "Appareil de Test", "cle_publique": None, "statut": "Appairé" }
 
 
-@application_fastapi.get("/api/v1/appareils")
-def lister_appareils():
-    """
-    Retourne la liste de tous les appareils appairés.
-    """
-    return list(appareils_appaires_db.values())
+# --- Modèles Pydantic ---
+class AppareilClient(BaseModel):
+    id_appareil: str
+    nom_appareil: str
+    cle_publique_pem: str
 
-@application_fastapi.delete("/api/v1/appareils/{id_appareil}")
-def revoquer_appareil(id_appareil: str):
-    """
-    Révoque (supprime) un appareil appairé en utilisant son ID.
-    """
-    if id_appareil in appareils_appaires_db:
-        del appareils_appaires_db[id_appareil]
-        return {"statut": "succes", "message": f"Appareil {id_appareil} révoqué."}
-    return {"statut": "erreur", "message": "Appareil non trouvé."}
-
-
-@application_fastapi.get("/api/v1/fichiers/lister")
-def lister_fichiers(chemin: Optional[str] = Query(default="/")):
-    """
-    Liste les fichiers et dossiers pour un chemin donné à l'intérieur du répertoire de base.
-    """
-    try:
-        # Sécurisation du chemin pour éviter les attaques de type "directory traversal"
-        chemin_securise = os.path.normpath(os.path.join(REPERTOIRE_DE_BASE, chemin.strip('/\\')))
-        if not chemin_securise.startswith(os.path.normpath(REPERTOIRE_DE_BASE)):
-            return {"erreur": "Accès non autorisé"}
-
-        contenu_repertoire = os.listdir(chemin_securise)
-        liste_fichiers = []
-
-        for nom_element in contenu_repertoire:
-            chemin_complet = os.path.join(chemin_securise, nom_element)
-            stats = os.stat(chemin_complet)
-            est_un_dossier = os.path.isdir(chemin_complet)
-
-            infos_element = {
-                "nom": nom_element,
-                "chemin": os.path.join(chemin, nom_element),
-                "type": "dossier" if est_un_dossier else "fichier",
-                "tailleOctets": stats.st_size,
-                "modifieLe": datetime.datetime.fromtimestamp(stats.st_mtime).isoformat()
-            }
-            liste_fichiers.append(infos_element)
-
-        return {"chemin_actuel": chemin, "contenu": liste_fichiers}
-
-    except FileNotFoundError:
-        return {"erreur": f"Le chemin '{chemin}' n'a pas été trouvé."}
-    except Exception as e:
-        return {"erreur": f"Une erreur est survenue: {str(e)}"}
-
-
-from pydantic import BaseModel
-
-# "Base de données" en mémoire pour les paramètres
-parametres_db = {
-    "stockage": {
-        "dossier_principal": os.path.join(os.path.expanduser("~"), "HybridStorage"),
-    },
-    "application": {
-        "lancement_demarrage": True,
-    },
-}
-
-# Modèles Pydantic pour la validation des données
 class ParametresStockage(BaseModel):
     dossier_principal: str
 
@@ -248,32 +84,111 @@ class ParametresComplets(BaseModel):
     application: ParametresApplication
 
 
-@application_fastapi.get("/api/v1/parametres")
-def lire_parametres():
-    """
-    Retourne la configuration actuelle de l'application.
-    """
-    return parametres_db
+# --- Endpoints HTTP ---
 
-@application_fastapi.post("/api/v1/parametres")
-def sauvegarder_parametres(parametres: ParametresComplets):
-    """
-    Sauvegarde la nouvelle configuration de l'application.
-    Valide les données entrantes grâce au modèle Pydantic.
-    """
-    # Dans une vraie application, on sauvegarderait ces données dans un fichier de config ou une base de données.
-    parametres_db["stockage"]["dossier_principal"] = parametres.stockage.dossier_principal
-    parametres_db["application"]["lancement_demarrage"] = parametres.application.lancement_demarrage
-    print(f"Paramètres sauvegardés: {parametres_db}")
-    return {"statut": "succes", "message": "Paramètres sauvegardés."}
+@application_fastapi.get("/")
+def lire_racine():
+    return {"message": "Bienvenue sur le serveur du Stockage Hybride !"}
 
+@application_fastapi.get("/api/v1/appairage/generer-code")
+def generer_code_appairage():
+    cle_publique = cle_privee_serveur.public_key()
+    pem_cle_publique = cle_publique.public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo)
+    der_cle_publique = cle_publique.public_bytes(encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo)
+    hachage = hashlib.sha256(der_cle_publique).hexdigest()
+    empreinte_formatee = ':'.join(hachage[i:i+2] for i in range(0, 32, 2)).upper()
 
-# Ce bloc de code est exécuté seulement si le script est lancé directement
-# (par exemple, avec `python main.py`).
-# Il n'est pas exécuté si le script est importé comme un module.
-# C'est utile pour le développement et le test.
+    donnees_qr_structure = {
+        "nom_hote": socket.gethostname(),
+        "cle_publique_pem": pem_cle_publique.decode('utf-8'),
+    }
+    return {"donnees_pour_qr": donnees_qr_structure, "empreinte_securite": empreinte_formatee}
+
+@application_fastapi.post("/api/v1/appairage/completer")
+def completer_appairage(appareil_client: AppareilClient):
+    appareils_appaires_db[appareil_client.id_appareil] = {
+        "id": appareil_client.id_appareil,
+        "nom": appareil_client.nom_appareil,
+        "cle_publique": appareil_client.cle_publique_pem,
+        "statut": "Appairé"
+    }
+    print(f"Nouvel appareil appairé : {appareil_client.nom_appareil}")
+    return {"statut": "succes", "message": f"Appareil {appareil_client.nom_appareil} appairé avec succès."}
+
+@application_fastapi.get("/api/v1/appareils")
+def lister_appareils():
+    return list(appareils_appaires_db.values())
+
+@application_fastapi.delete("/api/v1/appareils/{id_appareil}")
+def revoquer_appareil(id_appareil: str):
+    if id_appareil in appareils_appaires_db:
+        del appareils_appaires_db[id_appareil]
+        return {"statut": "succes", "message": f"Appareil {id_appareil} révoqué."}
+    return {"statut": "erreur", "message": "Appareil non trouvé."}
+
+def lister_fichiers_logique(chemin: str):
+    chemin_securise = os.path.normpath(os.path.join(REPERTOIRE_DE_BASE, chemin.strip('/\\')))
+    if not chemin_securise.startswith(os.path.normpath(REPERTOIRE_DE_BASE)):
+        raise ValueError("Accès non autorisé")
+
+    contenu_repertoire = os.listdir(chemin_securise)
+    liste_fichiers = []
+    for nom_element in contenu_repertoire:
+        chemin_complet = os.path.join(chemin_securise, nom_element)
+        stats = os.stat(chemin_complet)
+        est_un_dossier = os.path.isdir(chemin_complet)
+        liste_fichiers.append({
+            "nom": nom_element, "chemin": os.path.join(chemin, nom_element),
+            "type": "dossier" if est_un_dossier else "fichier",
+            "tailleOctets": stats.st_size,
+            "modifieLe": datetime.datetime.fromtimestamp(stats.st_mtime).isoformat()
+        })
+    return {"chemin_actuel": chemin, "contenu": liste_fichiers}
+
+@application_fastapi.get("/api/v1/fichiers/lister")
+def lister_fichiers_http(chemin: Optional[str] = Query(default="/")):
+    try:
+        return lister_fichiers_logique(chemin)
+    except Exception as e:
+        return {"erreur": str(e)}
+
+# ... autres endpoints HTTP ...
+
+# --- Endpoint WebSocket ---
+@application_fastapi.websocket("/ws/{id_appareil}")
+async def websocket_endpoint(websocket: WebSocket, id_appareil: str):
+    # Vérifie si l'appareil est autorisé
+    if id_appareil not in appareils_appaires_db:
+        await websocket.close(code=1008)
+        return
+
+    await gestionnaire.connecter(websocket)
+    print(f"Appareil {id_appareil} connecté via WebSocket.")
+    try:
+        while True:
+            # Attend de recevoir un message du client
+            donnees = await websocket.receive_text()
+            message = json.loads(donnees)
+
+            action = message.get("action")
+            charge_utile = message.get("charge_utile")
+
+            if action == "lister_fichiers":
+                chemin = charge_utile.get("chemin", "/")
+                try:
+                    reponse_fichiers = lister_fichiers_logique(chemin)
+                    reponse = {"action": "liste_fichiers", "statut": "succes", "donnees": reponse_fichiers}
+                except Exception as e:
+                    reponse = {"action": "liste_fichiers", "statut": "erreur", "message": str(e)}
+
+                await gestionnaire.envoyer_message_personnel(json.dumps(reponse), websocket)
+
+            # TODO: Gérer d'autres actions (recherche, etc.)
+
+    except WebSocketDisconnect:
+        gestionnaire.deconnecter(websocket)
+        print(f"Appareil {id_appareil} déconnecté.")
+
+# --- Lancement ---
 if __name__ == "__main__":
-    # Lance le serveur Uvicorn, qui est un serveur ASGI (Asynchronous Server Gateway Interface).
-    # Il écoute sur l'adresse 127.0.0.1 (localhost) sur le port 8000.
-    # `reload=True` permet au serveur de se redémarrer automatiquement si on modifie le code.
     uvicorn.run("main:application_fastapi", host="127.0.0.1", port=8000, reload=True)

@@ -26,12 +26,24 @@ class FileInfo extends Equatable {
   // Propriété calculée pour afficher la taille dans un format lisible.
   String get readableSize {
     if (type == FileType.directory) return ''; // Les dossiers n'ont pas de taille affichable ici.
-    if (sizeInBytes < 1024) return '$sizeInBytes B';
-    if (sizeInBytes < 1024 * 1024) return '${(sizeInBytes / 1024).toStringAsFixed(1)} KB';
-    if (sizeInBytes < 1024 * 1024 * 1024) return '${(sizeInBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    return '${(sizeInBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+    if (sizeInBytes < 1024) return '$sizeInBytes o';
+    if (sizeInBytes < 1024 * 1024) return '${(sizeInBytes / 1024).toStringAsFixed(1)} Ko';
+    if (sizeInBytes < 1024 * 1024 * 1024) return '${(sizeInBytes / (1024 * 1024)).toStringAsFixed(1)} Mo';
+    return '${(sizeInBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} Go';
   }
 
   @override
   List<Object?> get props => [path, name, modifiedAt, isLocal];
+
+  // Factory constructor pour créer une instance depuis une Map (JSON)
+  factory FileInfo.fromMap(Map<String, dynamic> map) {
+    return FileInfo(
+      name: map['nom'],
+      path: map['chemin'],
+      sizeInBytes: map['tailleOctets'],
+      modifiedAt: DateTime.parse(map['modifieLe']),
+      type: map['type'] == 'dossier' ? FileType.directory : FileType.file,
+      isLocal: false, // On assume que les données de la map viennent du serveur
+    );
+  }
 }

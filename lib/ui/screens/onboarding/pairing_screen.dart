@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hybrid_storage_app/bloc/auth/auth_cubit.dart';
 import 'package:hybrid_storage_app/core/di/service_locator.dart';
+import 'package:hybrid_storage_app/core/services/communication_service.dart';
 import 'package:hybrid_storage_app/core/services/crypto_service.dart';
 import 'package:hybrid_storage_app/core/services/real_communication_service.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
@@ -93,10 +94,10 @@ class _PairingScreenState extends State<PairingScreen> {
 
         if (success && mounted) {
           // 4. Sauvegarder les clés et marquer comme authentifié
-          // TODO: Vraie sauvegarde des clés dans le secure storage
+          final clePriveeMobilePem = cryptoService.encoderClePriveeEnPem(paireDeClesMobile.clePrivee);
           context.read<AuthCubit>().devicePaired(
             idAppareil: donneesAppareil['id_appareil']!,
-            clePriveeMobile: 'fake_private_key', // Remplacer par la vraie clé
+            clePriveeMobile: clePriveeMobilePem,
             clePubliqueServeur: clePubliqueServeurPem,
           );
           Navigator.of(context).popUntil((route) => route.isFirst);

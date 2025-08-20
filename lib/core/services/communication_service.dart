@@ -25,7 +25,7 @@ abstract class CommunicationService {
   Stream<double> downloadFile(String remotePath, String localPath);
 
   // Lance l'envoi d'un fichier depuis le smartphone vers l'ordinateur.
-  // Prend un objet File de dart:io.
+  // Prend un objet File de dart:io. Il est nullable pour la simulation.
   // Retourne un Stream pour suivre la progression.
-  Stream<double> uploadFile(File file, String remotePath);
+  Stream<double> uploadFile(File? file, String remotePath);
 }

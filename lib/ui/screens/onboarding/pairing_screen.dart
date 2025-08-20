@@ -1,9 +1,15 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hybrid_storage_app/bloc/auth/auth_cubit.dart';
-// import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:hybrid_storage_app/core/di/service_locator.dart';
+import 'package:hybrid_storage_app/core/services/crypto_service.dart';
+import 'package:hybrid_storage_app/core/services/real_communication_service.dart';
+import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:uuid/uuid.dart';
 
-// Écran d'appairage où l'utilisateur découvre et se connecte à l'ordinateur.
 class PairingScreen extends StatefulWidget {
   const PairingScreen({super.key});
 
@@ -12,97 +18,106 @@ class PairingScreen extends StatefulWidget {
 }
 
 class _PairingScreenState extends State<PairingScreen> {
-  // final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
-  // QRViewController? controller;
-  bool _isDiscovering = true;
+  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  QRViewController? controller;
+  bool _isProcessing = false;
 
   @override
-  void initState() {
-    super.initState();
-    // Simule une découverte réseau
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() {
-          _isDiscovering = false;
-        });
-      }
-    });
+  void reassemble() {
+    super.reassemble();
+    if (Platform.isAndroid) {
+      controller!.pauseCamera();
+    }
+    controller!.resumeCamera();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Appairer un appareil'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const Text(
-              'Scannez le QR code affiché sur l\'application de votre ordinateur.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 20),
-
-            // Placeholder pour la vue du scanner QR
-            Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey, width: 2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.qr_code_scanner, size: 80, color: Colors.grey),
-                    SizedBox(height: 10),
-                    Text('Vue du scanner QR'),
-                  ],
-                ),
+      appBar: AppBar(title: const Text('Appairer un appareil')),
+      body: Column(
+        children: <Widget>[
+          Expanded(
+            flex: 5,
+            child: QRView(
+              key: qrKey,
+              onQRViewCreated: _onQRViewCreated,
+              overlay: QrScannerOverlayShape(
+                borderColor: Colors.red,
+                borderRadius: 10,
+                borderLength: 30,
+                borderWidth: 10,
+                cutOutSize: 300,
               ),
             ),
-            const SizedBox(height: 20),
-
-            // Section pour la découverte automatique
-            _isDiscovering
-                ? const Column(
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 10),
-                      Text('Découverte des ordinateurs sur le réseau...'),
-                    ],
-                  )
-                : Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.computer),
-                      title: const Text('PC-DE-BUREAU'),
-                      subtitle: const Text('Prêt pour l\'appairage'),
-                      trailing: ElevatedButton(
-                        child: const Text('Appairer'),
-                        onPressed: () {
-                          // Simule un appairage réussi
-                          context.read<AuthCubit>().devicePaired();
-                          // Retour à l'écran principal
-                          Navigator.of(context).popUntil((route) => route.isFirst);
-                        },
-                      ),
-                    ),
-                  ),
-            const Spacer(),
-            TextButton(
-              onPressed: () {
-                // TODO: Implémenter la saisie manuelle de l'IP
-              },
-              child: const Text('Saisir une adresse IP manuellement'),
+          ),
+          const Expanded(
+            flex: 1,
+            child: Center(
+              child: Text('Scannez le code affiché sur votre ordinateur.'),
             ),
-          ],
-        ),
+          )
+        ],
       ),
     );
+  }
+
+  void _onQRViewCreated(QRViewController controller) {
+    this.controller = controller;
+    controller.scannedDataStream.listen((scanData) async {
+      if (_isProcessing || scanData.code == null) return;
+
+      setState(() { _isProcessing = true; });
+      controller.pauseCamera();
+
+      try {
+        final decodedQr = jsonDecode(scanData.code!);
+        final String nomHote = decodedQr['nom_hote'];
+        final String clePubliqueServeurPem = decodedQr['cle_publique_pem'];
+
+        // 1. Générer la paire de clés pour ce mobile
+        final cryptoService = getIt<CryptoService>();
+        final paireDeClesMobile = cryptoService.genererPaireDeClesRSA();
+        final clePubliqueMobilePem = cryptoService.encoderClePubliqueEnPem(paireDeClesMobile.clePublique);
+
+        // 2. Préparer les données à envoyer au serveur
+        final donneesAppareil = {
+          "id_appareil": const Uuid().v4(), // Génère un ID unique pour ce mobile
+          "nom_appareil": "Mon Appareil Mobile", // TODO: Rendre ce nom configurable
+          "cle_publique_pem": clePubliqueMobilePem,
+        };
+
+        // 3. Envoyer les données au serveur pour compléter l'appairage
+        final communicationService = getIt<CommunicationService>() as RealCommunicationService;
+        final success = await communicationService.completerAppairage(nomHote, donneesAppareil);
+
+        if (success && mounted) {
+          // 4. Sauvegarder les clés et marquer comme authentifié
+          // TODO: Vraie sauvegarde des clés dans le secure storage
+          context.read<AuthCubit>().devicePaired(
+            idAppareil: donneesAppareil['id_appareil']!,
+            clePriveeMobile: 'fake_private_key', // Remplacer par la vraie clé
+            clePubliqueServeur: clePubliqueServeurPem,
+          );
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        } else {
+          throw Exception("L'appairage a échoué côté serveur.");
+        }
+
+      } catch (e) {
+        print("Erreur d'appairage: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erreur lors de l'appairage: ${e.toString()}")),
+        );
+        controller.resumeCamera();
+        setState(() { _isProcessing = false; });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    super.dispose();
   }
 }

@@ -55,6 +55,10 @@ dependencies:
   uuid: ^4.3.3
   # Pour les animations de liste.
   flutter_staggered_animations: ^1.1.1
+  # Pour les opérations de cryptographie (génération de clés)
+  pointycastle: ^3.7.4
+  # Pour l'encodage des clés au format PEM
+  asn1lib: ^1.3.0
   # Pour les polices Google, si le design system est étendu.
   google_fonts: ^6.1.0
 

@@ -2,8 +2,8 @@ import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import './App.css'; // Importation des styles
 
-// Importation des composants pour chaque écran (à créer)
-// import TableauDeBord from './composants/TableauDeBord';
+// Importation des composants pour chaque écran
+import TableauDeBord from './composants/TableauDeBord';
 // import ExplorateurFichiers from './composants/ExplorateurFichiers';
 // import Appareils from './composants/Appareils';
 // import Parametres from './composants/Parametres';
@@ -43,8 +43,9 @@ function BarreLaterale() {
 
 // Composant principal de l'application
 function App() {
-  // Pour l'instant, on suppose que l'app n'est pas appairée pour afficher l'écran d'appairage.
-  const estAppaire = false;
+  // Pour le développement, on passe à `true` pour voir l'interface principale.
+  // Dans une vraie application, cet état serait géré dynamiquement.
+  const estAppaire = true;
 
   if (!estAppaire) {
     return <EcranAppairage />;
@@ -56,7 +57,7 @@ function App() {
       <main className="contenu-principal">
         <Routes>
           {/* Définition des routes. Chaque route correspond à un écran. */}
-          {/* <Route path="/" element={<TableauDeBord />} /> */}
+          <Route path="/" element={<TableauDeBord />} />
           {/* <Route path="/explorateur" element={<ExplorateurFichiers />} /> */}
           {/* <Route path="/appareils" element={<Appareils />} /> */}
           {/* <Route path="/parametres" element={<Parametres />} /> */}

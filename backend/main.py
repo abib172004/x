@@ -105,6 +105,37 @@ def generer_code_appairage():
     }
 
 
+@application_fastapi.get("/api/v1/tableau-de-bord/statistiques")
+def lire_statistiques_tableau_de_bord():
+    """
+    Retourne des statistiques simulées pour l'affichage sur le tableau de bord.
+    """
+    # Dans une vraie application, ces données proviendraient de la surveillance
+    # du disque, de la base de données des appareils et des journaux d'activité.
+    donnees_simulees = {
+        "stockage": {
+            "totalGo": 1000,
+            "utiliseGo": 450,
+            "ventilation": [
+                {"type": "Photos", "tailleGo": 200},
+                {"type": "Vidéos", "tailleGo": 150},
+                {"type": "Documents", "tailleGo": 50},
+                {"type": "Autres", "tailleGo": 50},
+            ]
+        },
+        "appareilsConnectes": [
+            {"nom": "Smartphone de Jules", "type": "Android", "statut": "Connecté"},
+            {"nom": "iPhone de Claire", "type": "iOS", "statut": "En veille"},
+        ],
+        "activiteRecente": [
+            {"heure": "14:25", "action": "Transfert de 50 photos terminé depuis \"iPhone de Claire\"."},
+            {"heure": "13:10", "action": "Connexion de \"Smartphone de Jules\"."},
+            {"heure": "11:50", "action": "Espace de stockage faible détecté sur \"iPhone de Claire\"."},
+        ]
+    }
+    return donnees_simulees
+
+
 # Ce bloc de code est exécuté seulement si le script est lancé directement
 # (par exemple, avec `python main.py`).
 # Il n'est pas exécuté si le script est importé comme un module.

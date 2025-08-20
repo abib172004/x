@@ -16,7 +16,6 @@ void setupLocator() {
   // Pour la production, il suffirait de changer cette ligne pour enregistrer la vraie implémentation.
   getIt.registerLazySingleton<CommunicationService>(() => MockCommunicationService());
 
-  // TODO: Enregistrer d'autres services ici à l'avenir.
-  // exemple: getIt.registerLazySingleton<DatabaseService>(() => SqfliteDatabaseService());
-  // exemple: getIt.registerLazySingleton<CryptoService>(() => FlutterCryptoService());
+  // Enregistre le repository des paramètres.
+  getIt.registerLazySingleton<SettingsRepository>(() => MockSettingsRepository());
 }

@@ -31,22 +31,33 @@ class StartDownload extends TransferEvent {
 }
 
 // Événement interne pour mettre à jour la progression d'un transfert.
-class _UpdateTransferProgress extends TransferEvent {
+class UpdateTransferProgress extends TransferEvent {
   final String transferId;
   final double progress;
 
-  const _UpdateTransferProgress(this.transferId, this.progress);
+  const UpdateTransferProgress(this.transferId, this.progress);
 
   @override
   List<Object> get props => [transferId, progress];
 }
 
 // Événement interne pour marquer un transfert comme terminé.
-class _CompleteTransfer extends TransferEvent {
+class CompleteTransfer extends TransferEvent {
   final String transferId;
 
-  const _CompleteTransfer(this.transferId);
+  const CompleteTransfer(this.transferId);
 
   @override
   List<Object> get props => [transferId];
+}
+
+// Événement interne pour marquer un transfert comme échoué.
+class FailTransfer extends TransferEvent {
+  final String transferId;
+  final String errorMessage;
+
+  const FailTransfer(this.transferId, this.errorMessage);
+
+  @override
+  List<Object> get props => [transferId, errorMessage];
 }

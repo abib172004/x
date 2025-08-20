@@ -70,16 +70,26 @@ class MockCommunicationService implements CommunicationService {
   @override
   Stream<double> downloadFile(String remotePath, String localPath) {
     // Simule une progression de téléchargement.
+    // Une chance sur quatre de simuler une erreur.
+    if (_random.nextInt(4) == 0) {
+      return Stream.periodic(const Duration(milliseconds: 100), (tick) {
+        if (tick > 5) {
+          throw Exception('Erreur réseau simulée');
+        }
+        return (tick + 1) * 0.1;
+      }).take(10);
+    }
+
     return Stream.periodic(const Duration(milliseconds: 300), (tick) {
-      return (tick + 1) * 0.1; // Progres de 10% à chaque tick
-    }).take(10); // Prend 10 ticks pour atteindre 100%
+      return (tick + 1) * 0.1;
+    }).take(10);
   }
 
   @override
-  Stream<double> uploadFile(File file, String remotePath) {
+  Stream<double> uploadFile(File? file, String remotePath) {
     // Simule une progression d'envoi.
     return Stream.periodic(const Duration(milliseconds: 200), (tick) {
-      return (tick + 1) * 0.05; // Progres de 5% à chaque tick
+      return (tick + 1) * 0.05;
     }).take(20);
   }
 

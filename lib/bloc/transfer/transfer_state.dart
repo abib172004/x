@@ -14,6 +14,7 @@ class Transfer extends Equatable {
   final TransferStatus status;
   final TransferType type;
   final double progress; // De 0.0 à 1.0
+  final String? errorMessage;
 
   Transfer({
     String? id,
@@ -21,11 +22,13 @@ class Transfer extends Equatable {
     required this.status,
     required this.type,
     this.progress = 0.0,
+    this.errorMessage,
   }) : id = id ?? const Uuid().v4();
 
   Transfer copyWith({
     TransferStatus? status,
     double? progress,
+    String? errorMessage,
   }) {
     return Transfer(
       id: id,
@@ -33,11 +36,12 @@ class Transfer extends Equatable {
       status: status ?? this.status,
       type: type,
       progress: progress ?? this.progress,
+      errorMessage: errorMessage ?? this.errorMessage,
     );
   }
 
   @override
-  List<Object> get props => [id, file, status, progress];
+  List<Object?> get props => [id, file, status, progress, errorMessage];
 }
 
 // L'état principal du BLoC des transferts.

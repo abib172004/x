@@ -22,3 +22,25 @@ class LoadDirectory extends FileExplorerEvent {
 
 // Événement pour rafraîchir le contenu du répertoire actuel.
 class RefreshDirectory extends FileExplorerEvent {}
+
+// Événement pour rechercher des fichiers.
+class SearchFiles extends FileExplorerEvent {
+  final String query;
+
+  const SearchFiles(this.query);
+
+  @override
+  List<Object> get props => [query];
+}
+
+// Événement pour trier les fichiers affichés.
+enum SortCriterion { name, date, size }
+
+class SortFiles extends FileExplorerEvent {
+  final SortCriterion criterion;
+
+  const SortFiles(this.criterion);
+
+  @override
+  List<Object> get props => [criterion];
+}

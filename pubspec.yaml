@@ -51,6 +51,8 @@ dependencies:
   permission_handler: ^11.1.0
   # Pour générer des identifiants uniques pour les transferts.
   uuid: ^4.3.3
+  # Pour les animations de liste.
+  flutter_staggered_animations: ^1.1.1
   # Pour les polices Google, si le design system est étendu.
   google_fonts: ^6.1.0
 

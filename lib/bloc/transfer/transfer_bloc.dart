@@ -12,46 +12,60 @@ class TransferBloc extends Bloc<TransferEvent, TransferState> {
 
   TransferBloc() : super(const TransferState()) {
     on<StartDownload>(_onStartDownload);
-    // on<StartUpload>(_onStartUpload); // Implémentation similaire
-    on<_UpdateTransferProgress>(_onUpdateProgress);
-    on<_CompleteTransfer>(_onCompleteTransfer);
+    on<StartUpload>(_onStartUpload);
+    on<UpdateTransferProgress>(_onUpdateProgress);
+    on<CompleteTransfer>(_onCompleteTransfer);
+    on<FailTransfer>(_onFailTransfer);
   }
 
   void _onStartDownload(StartDownload event, Emitter<TransferState> emit) {
-    // Crée un nouvel objet de transfert.
     final newTransfer = Transfer(
       file: event.fileToDownload,
       status: TransferStatus.ongoing,
       type: TransferType.download,
     );
+    _initiateTransfer(newTransfer, emit);
+  }
 
-    // Ajoute le nouveau transfert à la liste existante.
-    final updatedTransfers = List<Transfer>.from(state.transfers)..add(newTransfer);
+  void _onStartUpload(StartUpload event, Emitter<TransferState> emit) {
+    final newTransfer = Transfer(
+      file: event.fileToUpload,
+      status: TransferStatus.ongoing,
+      type: TransferType.upload,
+    );
+    _initiateTransfer(newTransfer, emit);
+  }
+
+  void _initiateTransfer(Transfer transfer, Emitter<TransferState> emit) {
+    final updatedTransfers = List<Transfer>.from(state.transfers)..add(transfer);
     emit(state.copyWith(transfers: updatedTransfers));
 
-    // Appelle le service et écoute le stream de progression.
-    _communicationService
-        .downloadFile(event.fileToDownload.path, '/fake/local/path')
-        .listen(
+    Stream<double> progressStream;
+    if (transfer.type == TransferType.download) {
+      progressStream = _communicationService.downloadFile(transfer.file.path, '/fake/local/path');
+    } else {
+      // Pour la simulation, on ne peut pas créer un vrai fichier, donc on passe null.
+      // Une vraie implémentation nécessiterait un objet File.
+      progressStream = _communicationService.uploadFile(null, transfer.file.path);
+    }
+
+    progressStream.listen(
       (progress) {
-        // Pour chaque mise à jour de la progression, on ajoute un événement interne.
-        add(_UpdateTransferProgress(newTransfer.id, progress));
+        add(UpdateTransferProgress(transfer.id, progress));
       },
       onDone: () {
-        // Quand le transfert est terminé, on ajoute un autre événement interne.
-        add(_CompleteTransfer(newTransfer.id));
+        add(CompleteTransfer(transfer.id));
       },
       onError: (error) {
-        // TODO: Gérer les erreurs de transfert.
+        add(FailTransfer(transfer.id, error.toString()));
       },
     );
   }
 
   void _onUpdateProgress(
-    _UpdateTransferProgress event,
+    UpdateTransferProgress event,
     Emitter<TransferState> emit,
   ) {
-    // Met à jour la progression du transfert concerné.
     final updatedTransfers = state.transfers.map((transfer) {
       if (transfer.id == event.transferId) {
         return transfer.copyWith(progress: event.progress);
@@ -63,13 +77,23 @@ class TransferBloc extends Bloc<TransferEvent, TransferState> {
   }
 
   void _onCompleteTransfer(
-    _CompleteTransfer event,
+    CompleteTransfer event,
     Emitter<TransferState> emit,
   ) {
-    // Marque le transfert comme terminé.
     final updatedTransfers = state.transfers.map((transfer) {
       if (transfer.id == event.transferId) {
         return transfer.copyWith(status: TransferStatus.completed, progress: 1.0);
+      }
+      return transfer;
+    }).toList();
+
+    emit(state.copyWith(transfers: updatedTransfers));
+  }
+
+  void _onFailTransfer(FailTransfer event, Emitter<TransferState> emit) {
+    final updatedTransfers = state.transfers.map((transfer) {
+      if (transfer.id == event.transferId) {
+        return transfer.copyWith(status: TransferStatus.failed, errorMessage: event.errorMessage);
       }
       return transfer;
     }).toList();

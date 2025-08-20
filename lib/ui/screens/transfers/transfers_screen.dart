@@ -98,24 +98,42 @@ class TransfersView extends StatelessWidget {
       trailing = const Icon(Icons.done);
     } else { // failed
       leadingIcon = const Icon(Icons.error, color: Colors.red);
-      trailing = const Icon(Icons.replay);
+      trailing = IconButton(
+        icon: const Icon(Icons.replay),
+        onPressed: () {
+          // TODO: Implémenter la logique pour relancer le transfert.
+        },
+      );
     }
 
     return ListTile(
       leading: leadingIcon,
       title: Text(transfer.file.name),
-      subtitle: transfer.status == TransferStatus.ongoing
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 4),
-                LinearProgressIndicator(value: transfer.progress),
-                const SizedBox(height: 4),
-                Text('${(transfer.progress * 100).toInt()}%'),
-              ],
-            )
-          : Text(transfer.file.readableSize),
+      subtitle: _buildSubtitle(transfer),
       trailing: trailing,
     );
+  }
+
+  Widget _buildSubtitle(Transfer transfer) {
+    if (transfer.status == TransferStatus.ongoing) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 4),
+          LinearProgressIndicator(value: transfer.progress),
+          const SizedBox(height: 4),
+          Text('${(transfer.progress * 100).toInt()}%'),
+        ],
+      );
+    }
+    if (transfer.status == TransferStatus.failed) {
+      return Text(
+        'Échoué: ${transfer.errorMessage}',
+        style: const TextStyle(color: Colors.red),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+    return Text(transfer.file.readableSize);
   }
 }

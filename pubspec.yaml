@@ -66,6 +66,8 @@ dependencies:
   workmanager: ^0.5.2
   # Pour vérifier l'espace disque
   disk_space: ^0.2.1
+  # Pour la persistance des paramètres simples
+  shared_preferences: ^2.2.2
   # Pour les polices Google, si le design system est étendu.
   google_fonts: ^6.1.0
 

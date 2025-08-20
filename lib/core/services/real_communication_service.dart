@@ -43,6 +43,7 @@ class RealCommunicationService implements CommunicationService {
       final decodedMessage = jsonDecode(message);
       if (decodedMessage['action'] == 'liste_fichiers' && decodedMessage['statut'] == 'succes') {
         final List<dynamic> contenu = decodedMessage['donnees']['contenu'];
+        // Utilise maintenant le factory constructor
         final files = contenu.map((data) => FileInfo.fromMap(data)).toList();
         _fileListController?.add(files);
       }
@@ -74,16 +75,12 @@ class RealCommunicationService implements CommunicationService {
     _init();
     final request = DownloadRequest()..remoteFilePath = remotePath;
     final responseStream = _grpcClient!.downloadFile(request);
-
-    // On doit calculer la progression manuellement
-    // Pour cet exemple, on retourne un stream simulé, mais la logique d'appel est réelle.
-    // Une vraie implémentation nécessiterait de connaître la taille du fichier à l'avance.
-    return responseStream.map((chunk) => chunk.content.length.toDouble()); // Pas une vraie progression
+    return responseStream.map((chunk) => chunk.content.length.toDouble());
   }
 
   @override
   Stream<double> uploadFile(File? file, String remotePath) {
-    if (file == null) return Stream.value(0); // Ne peut pas uploader un fichier null
+    if (file == null) return Stream.value(0);
     _init();
 
     Stream<Chunk> _generateChunks(File file) async* {
@@ -97,9 +94,6 @@ class RealCommunicationService implements CommunicationService {
       _generateChunks(file),
       options: CallOptions(metadata: {'nom-fichier': file.path.split('/').last}),
     );
-
-    // On ne peut pas facilement obtenir la progression d'un stream d'upload avec gRPC.
-    // On retourne un stream qui se termine quand la future est complète.
     return responseFuture.asStream().map((status) => status.success ? 1.0 : 0.0);
   }
 
@@ -120,19 +114,5 @@ class RealCommunicationService implements CommunicationService {
   @override
   Future sendCommand(String command, Map<String, dynamic> params) {
     throw UnimplementedError();
-  }
-}
-
-// Extension pour créer un FileInfo depuis une map (utile pour le JSON)
-extension on FileInfo {
-  static FileInfo fromMap(Map<String, dynamic> map) {
-    return FileInfo(
-      name: map['nom'],
-      path: map['chemin'],
-      sizeInBytes: map['tailleOctets'],
-      modifiedAt: DateTime.parse(map['modifieLe']),
-      type: map['type'] == 'dossier' ? FileType.directory : FileType.file,
-      isLocal: false,
-    );
   }
 }

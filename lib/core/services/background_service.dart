@@ -1,61 +1,66 @@
+import 'dart:io';
 import 'package:workmanager/workmanager.dart';
 import 'package:disk_space/disk_space.dart';
 import 'package:hybrid_storage_app/core/di/service_locator.dart';
+import 'package:hybrid_storage_app/core/repositories/settings_repository.dart';
 import 'package:hybrid_storage_app/core/services/communication_service.dart';
-import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 const backgroundTaskName = "hybridStorageCheck";
 
-// Cette fonction est le point d'entrée pour la tâche de fond.
-// Elle doit être une fonction de premier niveau (pas à l'intérieur d'une classe).
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    if (task == backgroundTaskName) {
-      print("Tâche de fond '$backgroundTaskName' en cours d'exécution...");
+    if (task != backgroundTaskName) return false;
 
-      try {
-        // 1. Vérifier l'espace disque
-        final double? freeSpace = await DiskSpace.getFreeDiskSpace; // en Mo
-        final double? totalSpace = await DiskSpace.getTotalDiskSpace; // en Mo
+    print("Tâche de fond '$backgroundTaskName' en cours d'exécution...");
 
-        if (freeSpace == null || totalSpace == null) return false;
+    // L'injection de dépendances n'est pas disponible dans cet isolate.
+    // On doit initialiser les services manuellement ou utiliser des singletons.
+    // Pour cet exemple, on suppose qu'on peut y accéder.
+    // Dans une vraie app, cela nécessiterait une architecture plus complexe.
 
-        final double freeSpacePercentage = (freeSpace / totalSpace) * 100;
-        print("Espace disque libre : ${freeSpacePercentage.toStringAsFixed(2)}%");
+    try {
+      // 1. Vérifier l'espace disque
+      final double? freeSpace = await DiskSpace.getFreeDiskSpace;
+      final double? totalSpace = await DiskSpace.getTotalDiskSpace;
 
-        // TODO: Récupérer le seuil depuis les paramètres sauvegardés
-        const int seuil = 10;
+      if (freeSpace == null || totalSpace == null) return false;
+      final double freeSpacePercentage = (freeSpace / totalSpace) * 100;
+      print("Espace disque libre : ${freeSpacePercentage.toStringAsFixed(2)}%");
 
-        if (freeSpacePercentage < seuil) {
-          print("Espace disque faible détecté ! Démarrage du transfert automatique.");
+      // TODO: Remplacer par un vrai chargement de settings en background
+      const int seuil = 10;
 
-          // 2. Identifier les fichiers à transférer
-          // Ceci est une simulation. Une vraie app scannerait le stockage.
-          final List<File> fichiers_a_transferer = [
-            // On ne peut pas créer de vrais fichiers ici, donc on simule
-          ];
-          print("${fichiers_a_transferer.length} fichiers à transférer (simulation).");
+      if (freeSpacePercentage < seuil) {
+        print("Espace disque faible détecté ! Démarrage du transfert automatique.");
 
-          // 3. Lancer le transfert
-          // On ne peut pas facilement injecter de dépendances ici,
-          // donc on devrait avoir une logique plus complexe pour accéder au service.
-          // Pour la démo, on suppose qu'on peut l'appeler.
-          // final communicationService = getIt<CommunicationService>();
-          // for (var fichier in fichiers_a_transferer) {
-          //   await communicationService.uploadFile(fichier, '/auto-transfer/${fichier.path.split('/').last}');
-          // }
-        } else {
-          print("Espace disque suffisant.");
-        }
+        // 2. Identifier les fichiers à transférer
+        final Directory tempDir = await getTemporaryDirectory();
+        // Créer un fichier de test pour la simulation
+        final File testFile = File('${tempDir.path}/test_file_for_upload.txt');
+        await testFile.writeAsString('Ceci est un test de transfert automatique.');
 
-        return Future.value(true);
-      } catch (err) {
-        print("Erreur dans la tâche de fond : $err");
-        return Future.value(false);
+        final List<File> fichiers_a_transferer = [testFile];
+        print("${fichiers_a_transferer.length} fichier(s) à transférer.");
+
+        // 3. Lancer le transfert
+        // NOTE: Ceci est une simplification. Normalement, on instancierait
+        // le service de communication ici.
+        // CommunicationService communicationService = RealCommunicationService();
+        // await communicationService.connect("host", 8000);
+        // for (var fichier in fichiers_a_transferer) {
+        //   communicationService.uploadFile(fichier, '/auto/${fichier.path.split('/').last}');
+        //   print("Transfert de ${fichier.path} initié.");
+        // }
+      } else {
+        print("Espace disque suffisant.");
       }
+      return true;
+    } catch (err) {
+      print("Erreur dans la tâche de fond : $err");
+      return false;
     }
-    return Future.value(false);
   });
 }
 
@@ -63,21 +68,21 @@ class BackgroundService {
   Future<void> initialize() async {
     await Workmanager().initialize(
       callbackDispatcher,
-      isInDebugMode: true, // Affiche les logs en mode debug
+      isInDebugMode: true,
     );
   }
 
   Future<void> schedulePeriodicCheck() async {
     await Workmanager().registerPeriodicTask(
-      "1", // ID unique de la tâche
+      "1",
       backgroundTaskName,
-      frequency: const Duration(hours: 1), // Vérifie toutes les heures
+      frequency: const Duration(minutes: 15), // Fréquence minimum pour le test
       constraints: Constraints(
-        networkType: NetworkType.unmetered, // Uniquement en Wi-Fi
-        requiresCharging: true, // Uniquement en charge
+        networkType: NetworkType.unmetered,
+        requiresCharging: false, // Pour faciliter les tests
       ),
     );
-    print("Tâche de fond planifiée pour s'exécuter toutes les heures en Wi-Fi et en charge.");
+    print("Tâche de fond planifiée.");
   }
 
   Future<void> cancelAllTasks() async {

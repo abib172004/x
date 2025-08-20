@@ -30,6 +30,8 @@ dependencies:
   multicast_dns: ^0.3.2+3
   # Vérification de la connectivité.
   connectivity_plus: ^5.0.2
+  # Pour les requêtes HTTP (appairage)
+  http: ^1.2.0
 
   # Pour la persistance des données.
   # Base de données locale SQLite.

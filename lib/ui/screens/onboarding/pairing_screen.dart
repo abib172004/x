@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hybrid_storage_app/bloc/auth/auth_cubit.dart';
@@ -26,6 +27,8 @@ class _PairingScreenState extends State<PairingScreen> {
   @override
   void reassemble() {
     super.reassemble();
+    // Gère le Hot Reload pour la caméra
+    if (kIsWeb) return;
     if (Platform.isAndroid) {
       controller!.pauseCamera();
     }
@@ -34,6 +37,31 @@ class _PairingScreenState extends State<PairingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Vérifie la plateforme pour afficher le widget approprié
+    if (kIsWeb || Platform.isAndroid || Platform.isIOS) {
+      return _buildScanner();
+    } else {
+      return _buildUnsupportedPlatformView();
+    }
+  }
+
+  Widget _buildUnsupportedPlatformView() {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Appairage non supporté')),
+      body: const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20.0),
+          child: Text(
+            'Le scan de QR code n\'est supporté que sur Android, iOS et le Web. Veuillez utiliser un de ces appareils pour l\'appairage.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScanner() {
     return Scaffold(
       appBar: AppBar(title: const Text('Appairer un appareil')),
       body: Column(
@@ -44,7 +72,7 @@ class _PairingScreenState extends State<PairingScreen> {
               key: qrKey,
               onQRViewCreated: _onQRViewCreated,
               overlay: QrScannerOverlayShape(
-                borderColor: Colors.red,
+                borderColor: Theme.of(context).colorScheme.primary,
                 borderRadius: 10,
                 borderLength: 30,
                 borderWidth: 10,
@@ -76,25 +104,21 @@ class _PairingScreenState extends State<PairingScreen> {
         final String nomHote = decodedQr['nom_hote'];
         final String clePubliqueServeurPem = decodedQr['cle_publique_pem'];
 
-        // 1. Générer la paire de clés pour ce mobile
         final cryptoService = getIt<CryptoService>();
         final paireDeClesMobile = cryptoService.genererPaireDeClesRSA();
         final clePubliqueMobilePem = cryptoService.encoderClePubliqueEnPem(paireDeClesMobile.clePublique);
+        final clePriveeMobilePem = cryptoService.encoderClePriveeEnPem(paireDeClesMobile.clePrivee);
 
-        // 2. Préparer les données à envoyer au serveur
         final donneesAppareil = {
-          "id_appareil": const Uuid().v4(), // Génère un ID unique pour ce mobile
-          "nom_appareil": "Mon Appareil Mobile", // TODO: Rendre ce nom configurable
+          "id_appareil": const Uuid().v4(),
+          "nom_appareil": "Mon Appareil Mobile",
           "cle_publique_pem": clePubliqueMobilePem,
         };
 
-        // 3. Envoyer les données au serveur pour compléter l'appairage
         final communicationService = getIt<CommunicationService>() as RealCommunicationService;
         final success = await communicationService.completerAppairage(nomHote, donneesAppareil);
 
         if (success && mounted) {
-          // 4. Sauvegarder les clés et marquer comme authentifié
-          final clePriveeMobilePem = cryptoService.encoderClePriveeEnPem(paireDeClesMobile.clePrivee);
           context.read<AuthCubit>().devicePaired(
             idAppareil: donneesAppareil['id_appareil']!,
             clePriveeMobile: clePriveeMobilePem,
@@ -106,7 +130,6 @@ class _PairingScreenState extends State<PairingScreen> {
         }
 
       } catch (e) {
-        print("Erreur d'appairage: $e");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Erreur lors de l'appairage: ${e.toString()}")),
         );

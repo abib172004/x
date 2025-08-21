@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:workmanager/workmanager.dart';
-import 'package:disk_space/disk_space.dart';
+import 'package:disk_space_2/disk_space_2.dart';
 import 'package:hybrid_storage_app/core/di/service_locator.dart';
 import 'package:hybrid_storage_app/core/repositories/settings_repository.dart';
 import 'package:hybrid_storage_app/core/services/communication_service.dart';
@@ -21,11 +21,10 @@ void callbackDispatcher() {
     // Dans une vraie app, cela nécessiterait une architecture plus complexe.
 
     try {
-      // 1. Vérifier l'espace disque
-      final double? freeSpace = await DiskSpace.getFreeDiskSpace;
-      final double? totalSpace = await DiskSpace.getTotalDiskSpace;
+      // 1. Vérifier l'espace disque avec le nouveau package
+      final double freeSpace = await DiskSpace2.getFreeDiskSpace ?? 0;
+      final double totalSpace = await DiskSpace2.getTotalDiskSpace ?? 1;
 
-      if (freeSpace == null || totalSpace == null) return false;
       final double freeSpacePercentage = (freeSpace / totalSpace) * 100;
       print("Espace disque libre : ${freeSpacePercentage.toStringAsFixed(2)}%");
 

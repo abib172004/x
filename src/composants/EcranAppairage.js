@@ -2,10 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios'; // Pour faire des requêtes HTTP vers le backend
 import { QRCodeSVG } from 'qrcode.react'; // Pour générer le QR code
 import './EcranAppairage.css'; // Styles spécifiques à cet écran
-
-// L'URL de base de notre API backend.
-// En développement, le serveur Python tourne sur le port 8000.
-const API_URL = 'http://localhost:8000';
+import { API_URL } from '../config';
 
 function EcranAppairage({ surAppairageReussi }) {
   // Déclaration des états du composant avec le hook `useState`.

@@ -6,6 +6,7 @@ import 'package:hybrid_storage_app/bloc/auth/auth_state.dart';
 import 'package:hybrid_storage_app/ui/screens/main_layout.dart';
 import 'package:hybrid_storage_app/ui/theme/app_theme.dart';
 import 'package:hybrid_storage_app/bloc/auth/auth_cubit.dart';
+import 'dart:io';
 import 'package:hybrid_storage_app/core/services/background_service.dart';
 import 'package:hybrid_storage_app/ui/screens/onboarding/welcome_screen.dart';
 import 'package:hybrid_storage_app/core/di/service_locator.dart';
@@ -15,8 +16,10 @@ import 'package:workmanager/workmanager.dart';
 void main() async { // main est maintenant async
   // Assure que les bindings Flutter sont initialisés avant toute opération asynchrone.
   WidgetsFlutterBinding.ensureInitialized();
-  // Initialise le service de tâches de fond
-  await Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
+  // Initialise le service de tâches de fond seulement sur les plateformes supportées.
+  if (Platform.isAndroid || Platform.isIOS) {
+    await Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
+  }
   // Configure le localisateur de services pour l'injection de dépendances.
   setupLocator();
   // Lance l'application.

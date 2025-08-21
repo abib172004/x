@@ -33,7 +33,6 @@ dependencies:
   # Pour les requêtes HTTP (appairage)
   http: ^1.2.0
   # Pour gRPC
-  grpc: ^3.2.4
   protobuf: ^3.1.0
 
   # Pour la persistance des données.

@@ -42,8 +42,8 @@ function creer_fenetre() {
 
 // Fonctions pour démarrer les serveurs backend.
 function demarrer_serveur_fastapi() {
-  console.log('Démarrage du serveur FastAPI...');
-  processus_fastapi = spawn('python', ['-m', 'uvicorn', 'main:application_fastapi', '--host', '127.0.0.1', '--port', '8000'], {
+  console.log('Démarrage du serveur FastAPI sur le port 8001...');
+  processus_fastapi = spawn('python', ['-m', 'uvicorn', 'main:application_fastapi', '--host', '127.0.0.1', '--port', '8001'], {
     cwd: path.join(__dirname, 'backend'),
     shell: true,
   });

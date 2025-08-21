@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './Parametres.css';
-
-const API_URL = 'http://localhost:8000';
+import { API_URL } from '../config';
 
 function Parametres() {
   const [parametres, definirParametres] = useState(null);

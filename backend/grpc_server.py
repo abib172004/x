@@ -75,9 +75,11 @@ def demarrer_serveur_grpc():
     serveur = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     transfer_pb2_grpc.add_FileTransferServicer_to_server(FileTransferServicer(), serveur)
     port = '50051'
-    serveur.add_insecure_port(f'[::]:{port}')
+    # Utilise 0.0.0.0 pour une meilleure compatibilité que [::]
+    adresse_ecoute = f'0.0.0.0:{port}'
+    serveur.add_insecure_port(adresse_ecoute)
     serveur.start()
-    print(f"Serveur gRPC démarré et à l'écoute sur le port {port}")
+    print(f"Serveur gRPC démarré et à l'écoute sur {adresse_ecoute}")
     serveur.wait_for_termination()
 
 if __name__ == '__main__':

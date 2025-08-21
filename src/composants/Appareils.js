@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './Appareils.css';
-
-const API_URL = 'http://localhost:8000';
+import { API_URL } from '../config';
 
 function Appareils() {
   const [appareils, definirAppareils] = useState([]);
